@@ -25,11 +25,17 @@ from pgbot.commands.base import (
     HiddenArg,
     String,
     fun_command,
+    groups,
+    group_command,
 )
 
 
 class UserCommand(BaseCommand):
     """Base class to handle user commands."""
+
+    def __init__(self, invoke_msg: discord.Message, resp_msg: discord.Message):
+        super().__init__(invoke_msg, resp_msg)
+        self.groups = groups.create_user()
 
     @fun_command
     async def cmd_version(self):

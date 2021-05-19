@@ -21,7 +21,7 @@ import psutil
 import pygame
 
 from pgbot import common, db, embed_utils, utils
-from pgbot.commands.base import BotException, CodeBlock, String
+from pgbot.commands.base import BotException, CodeBlock, String, group_command, groups
 from pgbot.commands.emsudo import EmsudoCommand
 from pgbot.commands.user import UserCommand
 
@@ -32,6 +32,10 @@ class AdminCommand(UserCommand, EmsudoCommand):
     """
     Base class for all admin commands
     """
+
+    def __init__(self, invoke_msg: discord.Message, resp_msg: discord.Message):
+        super().__init__(invoke_msg, resp_msg)
+        self.groups = groups.create_admin()
 
     async def cmd_see_db(self, name: str):
         """
@@ -812,6 +816,26 @@ class AdminCommand(UserCommand, EmsudoCommand):
         if not members:
             members = None
         await super().cmd_stream_del(members)
+
+    async def cmd_some_group(self, action: str, *args, **kwargs):
+        """
+        ->skip
+        """
+        await self.groups.handle_command(self, "some_group", action, *args, **kwargs)
+
+    @group_command("some_group", "command1")
+    async def sub_func(self):
+        await embed_utils.replace_2(
+            self.response_msg,
+            title="Some sub func",
+        )
+
+    @group_command("some_group", "command2")
+    async def sub_func_2(self, arg: str):
+        await embed_utils.replace_2(
+            self.response_msg,
+            title="The other sub func: " + arg,
+        )
 
 
 # monkey-patch admin command names into tuple

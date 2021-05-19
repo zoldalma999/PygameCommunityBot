@@ -21,6 +21,7 @@ import traceback
 from typing import TypeVar
 
 import discord
+from discord.channel import GroupChannel
 import pygame
 from pgbot import common, db, embed_utils, utils, emotion
 
@@ -134,6 +135,64 @@ class String:
         return newstr
 
 
+class Groups:
+    def __init__(self) -> None:
+        self.admin = {}
+        self.user = {}
+
+    def add_command(self, group, cmd, func):
+        current_group = None
+        if "admin" in func.__module__:
+            current_group = self.admin
+        else:
+            current_group = self.user
+
+        if not current_group.get(group):
+            current_group[group] = {}
+
+        current_group[group][cmd] = func
+
+    def create_user(self):
+        res = Groups()
+        del res.admin
+        res.user = self.user
+        return res
+
+    def create_admin(self):
+        res = Groups()
+        res.admin = self.admin
+        res.user = self.user
+        return res
+
+    async def handle_command(
+        self, other_cls, group_name, command_name, *args, **kwargs
+    ):
+        if group_name in self.user:
+            return await self.user[group_name].get(command_name, lambda *a, **kw: None)(
+                *args, **kwargs
+            )
+        elif getattr(self, "admin", None):
+            return await self.admin[group_name].get(
+                command_name, lambda *a, **kw: None
+            )(other_cls, *args, **kwargs)
+        print("Not found btw")
+
+
+groups = Groups()
+
+
+def group_command(group, cmd):
+    def group_cmd_decorator(func):
+        groups.add_command(group, cmd, func)
+
+        async def wrapper(*args, **kwargs):
+            return await func(*args, **kwargs)
+
+        return wrapper
+
+    return group_cmd_decorator
+
+
 # Type hint for an argument that is "hidden", that is, it cannot be passed
 # from the discord end
 HiddenArg = TypeVar("HiddenArg")
@@ -183,6 +242,8 @@ class BaseCommand:
         self.response_msg = resp_msg
         self.is_priv = True
         self.cmd_str = self.invoke_msg.content[len(common.PREFIX) :]
+
+        self.groups = None
 
         # Put a few attributes here for easy access
         self.author = self.invoke_msg.author
